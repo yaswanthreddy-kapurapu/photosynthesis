@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-01-09T11:21:41.135757Z",
+  "top3": [
+    {
+      "cfg": {
+        "apScale": 1.496,
+        "psScale": 0.943,
+        "saScale": 0.429,
+        "durationScale": 0.878
+      },
+      "score": 0.24647898082504677
+    },
+    {
+      "cfg": {
+        "apScale": 1.565,
+        "psScale": 0.688,
+        "saScale": 0.416,
+        "durationScale": 1.36
+      },
+      "score": 0.24629701237040738
+    },
+    {
+      "cfg": {
+        "apScale": 1.601,
+        "psScale": 0.558,
+        "saScale": 0.438,
+        "durationScale": 1.423
+      },
+      "score": 0.24608043382538927
+    }
+  ]
+}
