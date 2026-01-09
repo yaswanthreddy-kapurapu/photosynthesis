@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photosynthesis & Environment Interaction Simulator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Photosynthesis & Environment Interaction Simulator</h1>
+    <p class="tag">Explore how CO₂, temperature, and sunlight affect plants and global balance</p>
+  </header>
+
+  <main class="layout">
+    <section class="controls">
+      <h2>Environmental Controls 🌍 <span class="help" data-tooltip="Adjust CO₂, temperature, and sunlight to see immediate effects on plant photosynthesis and global balance.">ℹ️</span></h2>
+
+      <div class="presets">
+        <label>Presets:</label>
+        <button id="preset-pre" class="preset">Pre-Industrial</button>
+        <button id="preset-present" class="preset active">Present-day</button>
+        <button id="preset-high" class="preset danger">High-emissions</button>
+        <button id="preset-recover" class="preset">Recovery</button>
+        <button id="startTour" class="preset" title="Guided tour">Start Tour</button>
+        <button id="autoTune" class="preset" title="Auto-tune particle visuals">Auto-tune</button>
+        <div id="tuneStatus" style="margin-left:8px;font-size:.85rem;color:var(--muted)"></div>
+      </div>
+
+      <!-- Manual tuning panel -->
+      <details class="tuning-panel" id="tuningPanel">
+        <summary>Manual tuning (advanced)</summary>
+        <div class="tuning-controls">
+          <label>Atmosphere → Plants spawn scale: <input id="sliderAp" type="range" min="0.4" max="2" step="0.01" value="1"> <output id="sliderApVal">1.00</output></label>
+          <label>Plants → Soil spawn scale: <input id="sliderPs" type="range" min="0.4" max="1.6" step="0.01" value="1"> <output id="sliderPsVal">1.00</output></label>
+          <label>Soil → Atmos spawn scale: <input id="sliderSa" type="range" min="0.4" max="1.4" step="0.01" value="1"> <output id="sliderSaVal">1.00</output></label>
+          <label>Particle speed scale: <input id="sliderDur" type="range" min="0.6" max="1.6" step="0.01" value="1"> <output id="sliderDurVal">1.00</output></label>
+          <div class="tune-actions"><button id="applyManual" class="preset">Apply</button> <button id="resetManual" class="preset">Reset</button></div>
+        </div>
+      </details>
+
+      <!-- Guided tour overlay (hidden until started) -->
+      <div id="tourOverlay" class="tour-overlay" aria-hidden="true">
+        <div class="tour-card">
+          <h3 id="tourTitle">Tour</h3>
+          <p id="tourText">Welcome to the guided tour.</p>
+          <div class="tour-controls">
+            <button id="tourPrev">← Prev</button>
+            <button id="tourNext">Next →</button>
+            <button id="tourClose">Close ✖</button>
+          </div>
+          <div id="tourHint" class="tour-hint"></div>
+        </div>
+      </div>
+
+      <label>CO₂ concentration (ppm) <span class="help" data-tooltip="CO₂ concentration in the atmosphere measured in parts per million. Higher values can increase photosynthesis to a point but harm balance.">?</span>
+        <input id="co2" type="range" min="150" max="2000" value="420">
+        <output id="co2Val">420</output>
+      </label>
+
+      <label>Temperature (°C) <span class="help" data-tooltip="Air temperature affects enzyme activity and photosynthesis rates; plants have optimal temperature ranges.">?</span>
+        <input id="temp" type="range" min="-10" max="55" value="25">
+        <output id="tempVal">25</output>
+      </label>
+
+      <label>Sunlight intensity (%) <span class="help" data-tooltip="Sunlight drives photosynthesis—more light increases rate until other factors limit it.">?</span>
+        <input id="light" type="range" min="0" max="100" value="80">
+        <output id="lightVal">80</output>
+      </label>
+
+      <div class="toggles">
+        <label><input id="storms" type="checkbox"> Extreme events <span class="help" data-tooltip="Natural disasters or storms increase plant stress and can reduce growth.">?</span></label>
+        <label><input id="pollution" type="checkbox"> Pollution stress <span class="help" data-tooltip="Pollutants interfere with plant health and photosynthesis efficiency.">?</span></label>
+      </div>
+
+      <div class="legend">
+        <small>Tip: Drag sliders to see real-time changes. Tap any metric for a short explanation.</small>
+      </div>
+    </section>
+
+    <section class="canvas-area">
+      <canvas id="plantCanvas" width="700" height="520" aria-label="Plant growth canvas"></canvas>
+
+      <div class="balance">
+        <div id="globalIndex" class="global-index">Global Balance: <span id="gVal">—</span></div>
+        <div id="gIndicator" class="g-indicator"></div>
+        <div class="balance-help"><small>Color indicates ecosystem health: green ✓, yellow ⚠️, red ✖️</small></div>
+      </div>
+    </section>
+
+    <aside class="visuals">
+      <div class="card">
+        <h3>Oxygen Output 🫁</h3>
+        <div id="oxygenMeter" class="meter"></div>
+        <div id="oxygenPlot" style="width:320px;height:140px;"></div>
+      </div>
+
+      <div class="card">
+        <h3>Carbon Cycle 🔄 <span class="help" data-tooltip="Visualizes CO₂ movement between atmosphere, plants, and soil. Follow moving particles to see active flows.">?</span></h3>
+        <div class="card-controls">
+          <button id="loadBest" class="preset">Load Best Config</button>
+          <span id="bestInfo" style="margin-left:8px;color:var(--muted);font-size:.85rem"></span>
+        </div>
+        <div id="bestList" class="best-list" style="margin-top:8px"></div>
+        <svg id="carbonCycle" width="320" height="120">
+          <g id="flowPaths"></g>
+          <g id="particles"></g>
+        </svg>
+        <div id="carbonPlot" style="width:320px;height:140px;margin-top:8px"></div>
+        <div class="carbon-numbers"><small>Absorbed: <strong id="absVal">—</strong></small> <small style="margin-left:12px">Emitted: <strong id="emitVal">—</strong></small></div>
+        <div id="carbonLegend" class="legend-small"><small>Particles indicate direction and rate of carbon flow.</small></div>
+      </div>
+
+      <div class="card">
+        <h3>Scenario Comparison 🔬</h3>
+        <div id="comparisonPanel" class="comparison-grid">
+          <!-- Panels will be injected here -->
+        </div>
+        <div class="card-controls" style="margin-top:8px">
+          <button id="runComparison" class="preset">Run Comparison</button>
+          <button id="stopComparison" class="preset">Stop</button>
+        </div>
+      </div>
+
+      <div class="card small">
+        <h3>Quick Info 💡</h3>
+        <p id="infoBox">Adjust controls to watch photosynthesis, O₂ production, and carbon flows change instantly.<br><small><strong>Tip:</strong> Hover the ℹ️ icons for short explanations. Try presets like “High-emissions” to see stressed systems.</small></p>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <small>Built with <strong>D3.js</strong>, <strong>Plotly</strong>, <strong>Canvas API</strong>, <strong>Plotter/CCM</strong> modeling, and <strong>Matter.js</strong> physics.</small>
+  </footer>
+
+  <script src="js/ccm.js"></script>
+  <script src="js/plantRenderer.js"></script>
+  <script src="js/plots.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
